@@ -11,19 +11,21 @@ open Types
 // the output vector size n.
 let matrixMultiply (weights: WeightMatrix) (input: Vector) : Vector =
     // TODO: Implement this function.
-    raise (System.NotImplementedException("HelpersFunctions matrixMultiply not implemented"))
+      Array.init (Array.length weights) (fun i -> Array.sum (Array.mapi (fun j w -> w * input.[j]) weights.[i]))
+    
 
 // Adds two vectors together element-wise, returns a new vector.
 // Both vectors should be of the dimension (array size).
 let add (a: Vector) (b: Vector) : Vector =    
     // TODO: Implement this function.
-    raise (System.NotImplementedException("HelpersFunctions add not implemented"))
+    Array.map2 (+) a b
+    
 
 // Multiplies two vectors together element-wise, returns a new vector.
 // Both vectors should be of the dimension (array size).
 let elementWiseMultiply (a : Vector) (b: Vector) : Vector =  
     // TODO: Implement this function.
-    raise (System.NotImplementedException("HelpersFunctions elementWiseMultiply not implemented"))
+    Array.map2 (*) a b
 
 // Performs root mean square (RMS) layer normalization on an input vector.
 // To apply RMS layer normalization, we compute:
@@ -32,22 +34,44 @@ let elementWiseMultiply (a : Vector) (b: Vector) : Vector =
 // Weights is a learnt parameter that is computed during training.
 let rootMeanSquareNormalize (weights: WeightVector) (input: Vector) : Vector =
     // TODO: Implement this function.
-    raise (System.NotImplementedException("HelpersFunctions rootMeanSquareNormalize not implemented"))
+    // Calculate RMS 
+    let sumOfSquares =
+        input
+        |> Array.fold (fun acc x -> acc + (x * x)) 0.0
+
+    // Compute RMS with epsilon for numerical stability
+    let rms = 1.0 / System.Math.Sqrt((sumOfSquares / float input.Length) + 1e-5)
+    // Normalize each value
+    Array.mapi (fun i x -> weights.[i] * (x * rms)) input
+    //raise (System.NotImplementedException ("HelperFunctions rootMeanSquareNormalize not implemented"))
+    
 
 // Applies the softmax function to the given input vector (array).
 // Softmax is a function that transforms a vector into a probability distribution,
 // ranging from 0 to 1. Softmax is computed as:
 //   softmax(xi) = exp(xi) / sum(exp(xj))
 let softMax (input: Vector) : Vector =
-    // TODO: Implement this function.
-    raise (System.NotImplementedException("HelpersFunctions softMax not implemented"))
+    // Find the maximum value to prevent overflow
+    let maxValue = Array.max input
+    // Shift all values by subtracting max to prevent overflow
+    let shiftedInput = Array.map (fun x -> x - maxValue) input
+    // Calculate exponentials of shifted values
+    let expValues = Array.map (fun x -> System.Math.Exp(x)) shiftedInput
+    // Compute sum of exponentials
+    let expSum = Array.sum expValues
+    // Normalize each value
+    Array.map (fun x -> x / expSum) expValues
+    //raise (System.NotImplementedException("HelpersFunctions softMax not implemented"))
 
 // Applies our activation function: Sigmoid Linear Unit (SilU)
 // SilU is computed as silu(x) = x*σ(x).
 // σ(x) is the logistic sigmoid, or σ(x) = 1 / 1 + exp(-x). 
 let sigmoidActivation (input:Vector) : Vector =
     // TODO: Implement this function.
-    raise (System.NotImplementedException("HelpersFunctions sigmoidActivation not implemented"))
+    let sigmoid = Array.map (fun x -> 1.0 / (1.0 + exp(-x))) input
+    // Multiply each element by its sigmoid
+    Array.map2 (fun s x -> x * s) sigmoid input
+    //raise (System.NotImplementedException("HelpersFunctions sigmoidActivation not implemented"))
 
 
 // Reshaping function ...
@@ -84,8 +108,9 @@ let flattenComplex (vector: Complex[]): Vector =
 
 // Applies Rotary Position Embedding to a single pair of coordinates.
 // i.e. for each pair of 2D coordinates, multiply by the corresponding rotationCoefficients.
-let rotateOneHead (rotationCoeffients: Complex[]) (input: Complex[]) : Complex[] =
+let rotateOneHead (rotationCoefficients: Complex[]) (input: Complex[]) : Complex[] =
     // TODO: Implement this function.
+
     raise (System.NotImplementedException("HelpersFunctions rotateOneHead not implemented"))
 
 // Applies Rotary Position Embedding to each head of the input vector.
@@ -93,6 +118,7 @@ let rotateOneHead (rotationCoeffients: Complex[]) (input: Complex[]) : Complex[]
 // of 2D points, rotate them, and then merge it back to a single vector for each head.
 let rotateVector (rotationCoeffients: Complex[]) (input: MultiHead) : MultiHead = 
     // TODO: Implement this function.
+
     raise (System.NotImplementedException("HelpersFunctions rotateVector not implemented"))
 
 

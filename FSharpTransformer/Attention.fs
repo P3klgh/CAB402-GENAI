@@ -9,7 +9,14 @@ open HelperFunctions
 // Hint: Use the keyLookup function, as we do not have the key vector directly here.
 let attentionScore (query:Vector) (keyLookup:int->float) : float =    
     // TODO: Implement this function.
-    raise (System.NotImplementedException("Attention attentionScore not implemented"))
+    let dotProduct = 
+        query 
+        |> Array.mapi (fun i q -> q * keyLookup i)
+        |> Array.sum
+    // Scale by square root of vector dimension
+    let dimension = float query.Length
+    dotProduct / sqrt dimension
+    //raise (System.NotImplementedException("Attention attentionScore not implemented"))
 
 // Compute the dot product of the attention vector with the value vector.
 let weightedAttention (attention: Vector) (valueLookup:int->float) : float =

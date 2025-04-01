@@ -110,16 +110,25 @@ let flattenComplex (vector: Complex[]): Vector =
 // i.e. for each pair of 2D coordinates, multiply by the corresponding rotationCoefficients.
 let rotateOneHead (rotationCoefficients: Complex[]) (input: Complex[]) : Complex[] =
     // TODO: Implement this function.
-
-    raise (System.NotImplementedException("HelpersFunctions rotateOneHead not implemented"))
+    //Mapi for multiplying in a table of i and x
+        Array.mapi (fun i x -> x * rotationCoefficients[i]) input
+    // raise (System.NotImplementedException("HelpersFunctions rotateOneHead not implemented"))
 
 // Applies Rotary Position Embedding to each head of the input vector.
 // You should use the utility functions above to convert the input vector into a series
 // of 2D points, rotate them, and then merge it back to a single vector for each head.
-let rotateVector (rotationCoeffients: Complex[]) (input: MultiHead) : MultiHead = 
+let rotateVector (rotationCoefficients: Complex[]) (input: MultiHead) : MultiHead = 
     // TODO: Implement this function.
-
-    raise (System.NotImplementedException("HelpersFunctions rotateVector not implemented"))
-
-
+     // Process each attention head independently to maintain parallelization capability
+    Array.map (fun currentHead ->
+        // Convert the current head's vector representation into pairs of points
+        let pointsRepresentation = toComplex currentHead
+        
+        // Apply the rotation transformation to each point using the provided coefficients
+        let rotatedPoints = rotateOneHead rotationCoefficients pointsRepresentation
+        
+        // Convert the rotated points back to vector format
+        flattenComplex rotatedPoints
+    ) input
+    //raise (System.NotImplementedException("HelpersFunctions rotateVector not implemented"))
 

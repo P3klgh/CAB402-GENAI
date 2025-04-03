@@ -94,10 +94,7 @@ let flattenMultipleHeads (input:MultiHead) : Vector =
 // using a complex number type, with real and imaginary parts corresponding to the
 // X and Y coordinates respectively.
 let toComplex (vector: Vector) : Complex[] =
-    Debug.Assert(vector.Length % 2 = 0)
-    vector
-    |> Array.chunkBySize 2
-    |> Array.map (fun [|real;imag|] -> Complex(real,imag))
+    Array.init (vector.Length / 2) (fun i -> Complex(vector.[2 * i], vector.[2 * i + 1]))
 
 // Converts the list of 2D coordinates back to a single vector after applying
 // Rotary Postion Embedding.

@@ -12,7 +12,6 @@ open Types
 let matrixMultiply (weights: WeightMatrix) (input: Vector) : Vector =
     // TODO: Implement this function.
       Array.init (Array.length weights) (fun i -> Array.sum (Array.mapi (fun j w -> w * input.[j]) weights.[i]))
-    
 
 // Adds two vectors together element-wise, returns a new vector.
 // Both vectors should be of the dimension (array size).

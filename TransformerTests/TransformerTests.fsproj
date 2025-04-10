@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <Compile Include="TransformerTestsHelpers.fs" />
-    <Compile Include="SaveResults.fs" />
+    <Compile Include="ReadResults.fs" />
     <Compile Include="FeedForwardOneLayerTests.fs" />
     <Compile Include="FeedForwardAllLayerTests.fs" />
     <Compile Include="FeedForwardTests.fs" />

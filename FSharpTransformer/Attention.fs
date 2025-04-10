@@ -59,5 +59,5 @@ let attention (keyLookup:int->int->int->float) (valueLookup:int->int->int->float
             query.[headIndex]                   // The query vector for this head
     )
     |> flattenMultipleHeads
-
+    //Mapi 2 liner pipe #Possible
     //raise (System.NotImplementedException("Attention attention not implemented"))

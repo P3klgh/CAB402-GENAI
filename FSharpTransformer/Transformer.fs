@@ -84,7 +84,7 @@ let feedforwardOneLayer (model: Model) (keyCache:MultiHead[][]) (valueCache:Mult
     let finalOutput = add ffOutput attentionWithResidual
 
     // Return final output and updated key/value heads for caching
-    finalOutput, kHeads, vHeads
+    finalOutput, kRotated, vHeads
     
     //raise (System.NotImplementedException("Transformer feedforwardOneLayer not implemented"))
 
@@ -116,8 +116,8 @@ let feedForward (model: Model) (keyCache:MultiHead[][]) (valueCache:MultiHead[][
     // Apply final RMS normalization using model.normalizeOutputWeights
     let normalized = rootMeanSquareNormalize model.normalizeOutputWeights finalOutput
 
-    // Project to logits using the output projection matrix from the last layer
-    let logits = matrixMultiply model.weights.[model.numberOfLayers - 1].wo normalized
+    // Compute logits by multiplying the normalized output with the token embedding
+    let logits = matrixMultiply model.tokenEmbedding normalized
 
     // Return logits and updated key/value cache
     logits, updatedKeyCache, updatedValueCache

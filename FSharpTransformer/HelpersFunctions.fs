@@ -106,7 +106,6 @@ let flattenComplex (vector: Complex[]): Vector =
 // i.e. for each pair of 2D coordinates, multiply by the corresponding rotationCoefficients.
 let rotateOneHead (rotationCoefficients: Complex[]) (input: Complex[]) : Complex[] =
     // TODO: Implement this function.
-    //Mapi for multiplying in a table of i and x
         Array.mapi (fun i x -> x * rotationCoefficients[i]) input
     // raise (System.NotImplementedException("HelpersFunctions rotateOneHead not implemented"))
 
@@ -117,10 +116,9 @@ let rotateVector (rotationCoefficients: Complex[]) (input: MultiHead) : MultiHea
     // TODO: Implement this function.
      // Process each attention head independently to maintain parallelization capability
     Array.map (fun currentHead ->
-        // Convert the current head's vector representation into pairs of points
-        let pointsRepresentation = toComplex currentHead
         
-        // Apply the rotation transformation to each point using the provided coefficients
+        let pointsRepresentation = toComplex currentHead
+      
         let rotatedPoints = rotateOneHead rotationCoefficients pointsRepresentation
         
         // Convert the rotated points back to vector format

@@ -13,28 +13,28 @@ open Attention
 let createLookupFunction (previousValues:MultiHead[][]) (newValues:MultiHead) (tokenPosition:int) (layer:int): (int -> int -> int -> float) =
     fun headNumber requestedPosition positionWithinHead ->
         // TODO: Implement this function.
+        match requestedPosition with
+        | pos when pos = tokenPosition -> newValues.[headNumber].[positionWithinHead]
+        | pos -> previousValues.[pos].[layer].[headNumber].[positionWithinHead]
         //if requestedPosition = tokenPosition then 
         //    newValues.[headNumber].[positionWithinHead]
         //else
         //    previousValues.[requestedPosition].[layer].[headNumber].[positionWithinHead]
-        match requestedPosition with
-        | pos when pos = tokenPosition -> newValues.[headNumber].[positionWithinHead]
-        | pos -> previousValues.[pos].[layer].[headNumber].[positionWithinHead]
         //raise (System.NotImplementedException("Transformer createLookupFunction not implemented"))
 
 // Processes one layer of the transformer model. This is equivalent to the first for loop in the C# transformer() function.
 // The parameters you will need are stored in the model.weights array under index layer.
 // You need to:
-// - Apply layer normalization to the current vector before attention using normalizeInputWeights
-// - Generate query, key and value vectors by multiplying the current vector by the corresponding query (wq), key (qk) and value (wv)
+// - 1. Apply layer normalization to the current vector before attention using normalizeInputWeights
+// - 2. Generate query, key and value vectors by multiplying the current vector by the corresponding query (wq), key (qk) and value (wv)
 //   matrices for this layer. You will need to use the reshapeToMultipleHeads() function to split these vectors.
-// - Apply Rotary Position Embedding(RoPE) to query and key vectors. The value vector is not rotated.
-// - Use the attention function to compute multi-head attention for the query/key/value vectors.
-// - Project concatenated attention outputs with the output matrix (wo) to produce final attention.
-// - Add the residual connection (input vector).
-// - Apply layer normalization before the final feed-forward neural network (normalizeAttentionWeights).
-// - Feed-forward network component: Matrix multiply w1 and w3, sigmoid is only applied to w1.
-// - Then the product of these two matrices is multiplied by w2 with second residual connection.
+// - 3. Apply Rotary Position Embedding(RoPE) to query and key vectors. The value vector is not rotated.
+// - 4. Use the attention function to compute multi-head attention for the query/key/value vectors.
+// - 5. Project concatenated attention outputs with the output matrix (wo) to produce final attention.
+// - 6. Add the residual connection (input vector).
+// - 7. Apply layer normalization before the final feed-forward neural network (normalizeAttentionWeights).
+// - 8. Feed-forward network component: Matrix multiply w1 and w3, sigmoid is only applied to w1.
+// - 9. Then the product of these two matrices is multiplied by w2 with second residual connection.
 let feedforwardOneLayer (model: Model) (keyCache:MultiHead[][]) (valueCache:MultiHead[][]) (tokenPosition:int) (input: Vector) (layer: int) : Vector * MultiHead * MultiHead =
     // TODO: Implement this function.
     let weights = model.weights.[layer]
@@ -47,40 +47,40 @@ let feedforwardOneLayer (model: Model) (keyCache:MultiHead[][]) (valueCache:Mult
     let k = matrixMultiply weights.wk normalisedInput
     let v = matrixMultiply weights.wv normalisedInput
 
-    // 3. Reshape to heads
+    // 3.1 Reshape to heads
     let qHeads = reshapeToMultipleHeads model.headSize q
     let kHeads = reshapeToMultipleHeads model.headSize k
     let vHeads = reshapeToMultipleHeads model.headSize v
 
-    // 4. Apply Rotary Position Embedding (RoPE) to Q/K
-    let qRotated = rotateVector (model.rotationCoefficients.[tokenPosition]) qHeads
-    let kRotated = rotateVector (model.rotationCoefficients.[tokenPosition]) kHeads
+    // 3.2 Apply Rotary Position Embedding (RoPE) to Q/K
+    let rope = model.rotationCoefficients.[tokenPosition]
+    let qRotated = rotateVector rope qHeads
+    let kRotated = rotateVector rope kHeads
 
-    // 5. Define key/value lookup functions (for caching past tokens)
-    let keyLookup = createLookupFunction keyCache kHeads tokenPosition layer
+    // Define key/value lookup functions (for caching past tokens)
+    let keyLookup = createLookupFunction keyCache kRotated tokenPosition layer
     let valueLookup = createLookupFunction valueCache vHeads tokenPosition layer
 
-    // 6. Multi-head attention using Q, K, V, and cache
+    // 4. Multi-head attention using Q, K, V, and cache
     let attentionOutput = attention keyLookup valueLookup tokenPosition qRotated
 
-    // 7. Flatten heads and apply output projection
-    let attentionOutputMultiHead : MultiHead = [| attentionOutput |]
-    let attentionConcat = flattenMultipleHeads attentionOutputMultiHead
+    // 5 Flatten heads and apply output projection
+    let attentionConcat = attentionOutput
     let projectedAttention = matrixMultiply weights.wo attentionConcat
 
-    // 8. First residual connection (post-attention)
-    let attentionWithResidual = add projectedAttention input  
+    // 6. First residual connection (post-attention)
+    let attentionWithResidual = add input projectedAttention 
 
-    // 9. Normalize before feed-forward
+    // 7. Normalize before feed-forward
     let normalizedAttention = rootMeanSquareNormalize weights.normalizeAttentionWeights attentionWithResidual
 
-    // 10. Feed-forward block
-    let w1Output = matrixMultiply weights.w1 normalizedAttention
-    let w3Output = matrixMultiply weights.w3 normalizedAttention
-    let gated = elementWiseMultiply (sigmoidActivation w1Output) w3Output
+    // 8. Feed-forward block
+    let w1 = matrixMultiply weights.w1 normalizedAttention
+    let w3 = matrixMultiply weights.w3 normalizedAttention
+    let gated = elementWiseMultiply (sigmoidActivation w1) w3
     let ffOutput = matrixMultiply weights.w2 gated
 
-    // 11. Second residual connection (final output)
+    // 9. Second residual connection (final output)
     let finalOutput = add ffOutput attentionWithResidual
 
     // Return final output and updated key/value heads for caching
@@ -107,15 +107,35 @@ let feedForwardAllLayers (model: Model) (keyCache:MultiHead[][]) (valueCache:Mul
 // This function roughly equates to the first copy() call and final rmsnorm()/matmul() calls in the C# transformer() method.
 let feedForward (model: Model) (keyCache:MultiHead[][]) (valueCache:MultiHead[][]) (tokenPosition:int) (token:Token) : Vector * MultiHead[] * MultiHead[] =
     // TODO: Implement this function.
+    // Convert token to input vector using token embedding
+    let input = model.tokenEmbedding.[token]
 
-    raise (System.NotImplementedException("Transformer feedForward not implemented"))
+    // Process input through all layers of the transformer
+    let (finalOutput, updatedKeyCache, updatedValueCache) = feedForwardAllLayers model keyCache valueCache tokenPosition input
+
+    // Apply final RMS normalization using model.normalizeOutputWeights
+    let normalized = rootMeanSquareNormalize model.normalizeOutputWeights finalOutput
+
+    // Project to logits using the output projection matrix from the last layer
+    let logits = matrixMultiply model.weights.[model.numberOfLayers - 1].wo normalized
+
+    // Return logits and updated key/value cache
+    logits, updatedKeyCache, updatedValueCache
+    //raise (System.NotImplementedException("Transformer feedForward not implemented"))
 
 // Obtains the logits for the next token, and selects the token to return based on the provided decoder function.
 // You should also return the updated key/value cache.
 let generateNextToken (model: Model) (keyCache:MultiHead[][]) (valueCache:MultiHead[][])  (tokenPosition:int) (token:Token) (decoder:Vector->Token) : Token * MultiHead[] * MultiHead[] =
     // TODO: Implement this function.
-
-    raise (System.NotImplementedException("Transformer generateNextToken not implemented"))
+    // Run the transformer forward pass
+    let (logits, updatedKeyCache, updatedValueCache) = feedForward model keyCache valueCache tokenPosition token
+    
+    // Decode the logits to select the next token
+    let nextToken = decoder logits
+    
+    // Return token and updated key/value caches
+    nextToken, updatedKeyCache, updatedValueCache
+    //raise (System.NotImplementedException("Transformer generateNextToken not implemented"))
 
 // Generates a sequence of tokens using the specified decoder.
 // This function is responsible for appending the cache of key/values for all layers to the "main" key/value cache,

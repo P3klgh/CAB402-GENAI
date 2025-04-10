@@ -22,8 +22,8 @@ type FeedForwardAllLayerTests () =
         let (output1, keyCache1, valueCache1) = feedForwardAllLayers model53M Array.empty Array.empty 0 input
         let input2 = model53M.tokenEmbedding[9038]
         let (output2, keyCache2, valueCache2) = feedForwardAllLayers model53M [| keyCache1|] [|valueCache1|] 1 input2
-        saveResults3 "test2b" output2 keyCache2 valueCache2
-        compareResults3D "test2b" output2 keyCache2 valueCache2
+        saveResults3 "test2b" output1 keyCache2 valueCache2
+        compareResults3D "test2b" output1 keyCache2 valueCache2
     [<TestMethod>]
     member this.Test3 () =
         let (output1, keyCache1, valueCache1) = feedForwardAllLayers model53M Array.empty Array.empty 0 input

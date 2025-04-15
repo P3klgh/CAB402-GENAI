@@ -36,58 +36,58 @@ let createLookupFunction (previousValues:MultiHead[][]) (newValues:MultiHead) (t
 // - 8. Feed-forward network component: Matrix multiply w1 and w3, sigmoid is only applied to w1.
 // - 9. Then the product of these two matrices is multiplied by w2 with second residual connection.
 let feedforwardOneLayer (model: Model) (keyCache:MultiHead[][]) (valueCache:MultiHead[][]) (tokenPosition:int) (input: Vector) (layer: int) : Vector * MultiHead * MultiHead =
-    // TODO: Implement this function.
+   
     let weights = model.weights.[layer]
-
-    // 1. Layer normalization before attention
-    let normalisedInput = rootMeanSquareNormalize weights.normalizeInputWeights input
-
-    // 2. Linear projections to Q/K/V
-    let q = matrixMultiply weights.wq normalisedInput
-    let k = matrixMultiply weights.wk normalisedInput
-    let v = matrixMultiply weights.wv normalisedInput
-
-    // 3.1 Reshape to heads
-    let qHeads = reshapeToMultipleHeads model.headSize q
-    let kHeads = reshapeToMultipleHeads model.headSize k
-    let vHeads = reshapeToMultipleHeads model.headSize v
-
-    // 3.2 Apply Rotary Position Embedding (RoPE) to Q/K
     let rope = model.rotationCoefficients.[tokenPosition]
-    let qRotated = rotateVector rope qHeads
-    let kRotated = rotateVector rope kHeads
 
-    // Define key/value lookup functions (for caching past tokens)
+    // Attention block
+    let normalizedInput =
+        input
+        |> rootMeanSquareNormalize weights.normalizeInputWeights
+
+    let q, k, v =
+        normalizedInput
+        |> fun x -> matrixMultiply weights.wq x,
+                    matrixMultiply weights.wk x,
+                    matrixMultiply weights.wv x
+
+    let qRotated, kRotated, vHeads =
+        let reshape = reshapeToMultipleHeads model.headSize
+        reshape q |> rotateVector rope,
+        reshape k |> rotateVector rope,
+        reshape v
+
     let keyLookup = createLookupFunction keyCache kRotated tokenPosition layer
     let valueLookup = createLookupFunction valueCache vHeads tokenPosition layer
 
-    // 4. Multi-head attention using Q, K, V, and cache
-    let attentionOutput = attention keyLookup valueLookup tokenPosition qRotated
+    let attentionOutput =
+        qRotated
+        |> attention keyLookup valueLookup tokenPosition
 
-    // 5 Flatten heads and apply output projection
-    let attentionConcat = attentionOutput
-    let projectedAttention = matrixMultiply weights.wo attentionConcat
+    let projectedAttention =
+        attentionOutput
+        |> matrixMultiply weights.wo
 
-    // 6. First residual connection (post-attention)
-    let attentionWithResidual = add input projectedAttention 
+    let attentionWithResidual =
+        input
+        |> add projectedAttention
 
-    // 7. Normalize before feed-forward
-    let normalizedAttention = rootMeanSquareNormalize weights.normalizeAttentionWeights attentionWithResidual
+    // Feed-forward block
+    let ffOutput =
+        attentionWithResidual
+        |> rootMeanSquareNormalize weights.normalizeAttentionWeights
+        |> fun x ->
+            let w1 = matrixMultiply weights.w1 x
+            let w3 = matrixMultiply weights.w3 x
+            sigmoidActivation w1
+            |> elementWiseMultiply w3
+            |> matrixMultiply weights.w2
 
-    // 8. Feed-forward block
-    let w1 = matrixMultiply weights.w1 normalizedAttention
-    let w3 = matrixMultiply weights.w3 normalizedAttention
-    let gated = elementWiseMultiply (sigmoidActivation w1) w3
-    let ffOutput = matrixMultiply weights.w2 gated
+    let finalOutput =
+        ffOutput
+        |> add attentionWithResidual
 
-    // 9. Second residual connection (final output)
-    let finalOutput = add ffOutput attentionWithResidual
-
-    // Return final output and updated key/value heads for caching
     finalOutput, kRotated, vHeads
-    
-    //raise (System.NotImplementedException("Transformer feedforwardOneLayer not implemented"))
-
 // Returns a new array with the newElement added to array.
 let appendElement (array: 'T[]) (newElement: 'T) : 'T[] =
     Array.append array [| newElement |]
@@ -107,33 +107,34 @@ let feedForwardAllLayers (model: Model) (keyCache:MultiHead[][]) (valueCache:Mul
 // This function roughly equates to the first copy() call and final rmsnorm()/matmul() calls in the C# transformer() method.
 let feedForward (model: Model) (keyCache:MultiHead[][]) (valueCache:MultiHead[][]) (tokenPosition:int) (token:Token) : Vector * MultiHead[] * MultiHead[] =
     // TODO: Implement this function.
-    // Convert token to input vector using token embedding
+    // Convert token to input vector
     let input = model.tokenEmbedding.[token]
 
-    // Process input through all layers of the transformer
-    let (finalOutput, updatedKeyCache, updatedValueCache) = feedForwardAllLayers model keyCache valueCache tokenPosition input
+    // Process through transformer layers
+    let finalOutput, updatedKeyCache, updatedValueCache =
+        input
+        |> feedForwardAllLayers model keyCache valueCache tokenPosition
 
-    // Apply final RMS normalization using model.normalizeOutputWeights
-    let normalized = rootMeanSquareNormalize model.normalizeOutputWeights finalOutput
+    // Compute logits
+    let logits =
+        finalOutput
+        |> rootMeanSquareNormalize model.normalizeOutputWeights
+        |> matrixMultiply model.tokenEmbedding
 
-    // Compute logits by multiplying the normalized output with the token embedding
-    let logits = matrixMultiply model.tokenEmbedding normalized
-
-    // Return logits and updated key/value cache
     logits, updatedKeyCache, updatedValueCache
-    //raise (System.NotImplementedException("Transformer feedForward not implemented"))
 
 // Obtains the logits for the next token, and selects the token to return based on the provided decoder function.
 // You should also return the updated key/value cache.
 let generateNextToken (model: Model) (keyCache:MultiHead[][]) (valueCache:MultiHead[][])  (tokenPosition:int) (token:Token) (decoder:Vector->Token) : Token * MultiHead[] * MultiHead[] =
     // TODO: Implement this function.
-    // Run the transformer forward pass
-    let (logits, updatedKeyCache, updatedValueCache) = feedForward model keyCache valueCache tokenPosition token
-    
-    // Decode the logits to select the next token
-    let nextToken = decoder logits
-    
-    // Return token and updated key/value caches
+    // Run the transformer forward pass and decode next token
+    let logits, updatedKeyCache, updatedValueCache =
+        feedForward model keyCache valueCache tokenPosition token
+
+    let nextToken =
+        logits
+        |> decoder
+
     nextToken, updatedKeyCache, updatedValueCache
     //raise (System.NotImplementedException("Transformer generateNextToken not implemented"))
 

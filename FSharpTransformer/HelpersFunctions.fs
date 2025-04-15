@@ -50,16 +50,14 @@ let rootMeanSquareNormalize (weights: WeightVector) (input: Vector) : Vector =
 // ranging from 0 to 1. Softmax is computed as:
 //   softmax(xi) = exp(xi) / sum(exp(xj))
 let softMax (input: Vector) : Vector =
-    // Find the maximum value to prevent overflow
     let maxValue = Array.max input
-    // Shift all values by subtracting max to prevent overflow
-    let shiftedInput = Array.map (fun x -> x - maxValue) input
-    // Calculate exponentials of shifted values
-    let expValues = Array.map (fun x -> System.Math.Exp(x)) shiftedInput
-    // Compute sum of exponentials
-    let expSum = Array.sum expValues
-    // Normalize each value
-    Array.map (fun x -> x / expSum) expValues
+
+    input
+    |> Array.map (fun x -> x - maxValue)         // Prevent overflow
+    |> Array.map System.Math.Exp                 
+    |> fun expValues ->
+        let sumExp = Array.sum expValues
+        expValues |> Array.map (fun x -> x / sumExp)  // Normalize
     //raise (System.NotImplementedException("HelpersFunctions softMax not implemented"))
 
 // Applies our activation function: Sigmoid Linear Unit (SilU)
